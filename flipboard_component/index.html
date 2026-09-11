@@ -132,8 +132,15 @@
     color: #e4e4e7; padding: 6px 13px; border-radius: var(--radius-pill);
     font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
   }
-  .page-montaigne .page-inner {
-    top: auto; bottom: 28px; transform: none;
+  .page-montaigne .page-textwrap {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: transparent;
+  }
+  .page-montaigne.noimg .page-textwrap {
+    background: transparent;
+    border-color: transparent;
   }
   .page-title {
     font-size: clamp(22px, 3.4vw, 38px); line-height: 1.22;
@@ -514,7 +521,6 @@
     .page-title .title-rest { font-size: 0.78em; }
     .back-top { right: 6px; padding: 7px 10px; font-size: 11px; }
     .next-pill { bottom: 20px; max-width: 88vw; }
-    .page-montaigne .page-inner { bottom: 20px; }
   }
 </style>
 </head>
@@ -1332,20 +1338,19 @@
         "</div>"
       : '<span class="src-chip">' + esc(a.emoji) + " " + esc(a.source) + "</span>";
 
-    var textwrapHtml = isMontaigne
-      ? ""
-      : '<div class="page-textwrap" tabindex="0" role="button" aria-label="Retourner la carte pour lire le chapô">' +
-          '<div class="flip-card-inner">' +
-            '<div class="flip-card-front">' +
-              titleHtml +
-              (a.excerpt ? '<p class="page-excerpt">' + esc(a.excerpt) + "</p>" : "") +
-              metaHtml +
-            "</div>" +
-            '<div class="flip-card-back">' +
-              (chapo ? '<p class="page-chapo-back">' + esc(chapo) + "</p>" : "") +
-            "</div>" +
+    var textwrapHtml =
+      '<div class="page-textwrap" tabindex="0" role="button" aria-label="Retourner la carte pour lire le chapô">' +
+        '<div class="flip-card-inner">' +
+          '<div class="flip-card-front">' +
+            titleHtml +
+            (a.excerpt ? '<p class="page-excerpt">' + esc(a.excerpt) + "</p>" : "") +
+            metaHtml +
           "</div>" +
-        "</div>";
+          '<div class="flip-card-back">' +
+            (chapo ? '<p class="page-chapo-back">' + esc(chapo) + "</p>" : "") +
+          "</div>" +
+        "</div>" +
+      "</div>";
 
     page.innerHTML =
       '<div class="page-card">' +

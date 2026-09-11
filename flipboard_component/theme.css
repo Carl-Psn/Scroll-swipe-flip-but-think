@@ -342,6 +342,18 @@ html, body {
   border-radius: var(--radius-pill);
 }
 
+.page-montaigne .page-textwrap {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+}
+
+.page-montaigne.noimg .page-textwrap {
+  background: transparent;
+  border-color: transparent;
+}
+
 .page.noimg .page-media { position: relative; }
 .page.noimg .page-media::after {
   content: "";
