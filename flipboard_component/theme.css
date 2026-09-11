@@ -172,7 +172,7 @@ html, body {
   background: linear-gradient(165deg, var(--royal-600) 0%, var(--royal-800) 55%, var(--royal-950) 100%);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.55s ease;
+  transition: opacity 0.72s ease;
 }
 
 .splash.show {
@@ -342,25 +342,27 @@ html, body {
   border-radius: var(--radius-pill);
 }
 
-.page-montaigne .page-textwrap {
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  border-color: transparent;
-}
+@media (min-width: 721px) {
+  .page-montaigne .page-textwrap {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-color: transparent;
+  }
 
-.page-montaigne.noimg .page-textwrap {
-  background: transparent;
-  border-color: transparent;
-}
+  .page-montaigne.noimg .page-textwrap {
+    background: transparent;
+    border-color: transparent;
+  }
 
-.page-montaigne .page-textwrap .flip-card-front,
-.page-montaigne .page-textwrap .flip-card-back {
-  opacity: 0;
-}
+  .page-montaigne .page-textwrap .flip-card-front,
+  .page-montaigne .page-textwrap .flip-card-back {
+    opacity: 0;
+  }
 
-.page-montaigne .page-textwrap .page-title::after {
-  opacity: 0;
+  .page-montaigne .page-textwrap .page-title::after {
+    opacity: 0;
+  }
 }
 
 .page.noimg .page-media { position: relative; }
