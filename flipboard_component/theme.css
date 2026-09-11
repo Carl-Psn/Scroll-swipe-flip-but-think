@@ -390,13 +390,25 @@ html, body {
   transform: translate(-50%, -50%) scale(0.6);
   z-index: 6;
   display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
-  color: var(--royal-400);
+  color: #ef4444;
   opacity: 0; pointer-events: none;
 }
-.dismiss-flash .ic { font-size: 52px; filter: drop-shadow(0 6px 24px rgba(0,0,0,.6)); }
+.dismiss-flash .ic {
+  font-size: 58px;
+  font-weight: 800;
+  color: #fff;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(220, 38, 38, 0.92);
+  border: 2px solid rgba(255, 120, 120, 0.75);
+  box-shadow: 0 6px 28px rgba(220, 38, 38, 0.6);
+  filter: drop-shadow(0 6px 24px rgba(0, 0, 0, 0.45));
+}
 .dismiss-flash .tx {
   font-family: var(--font-ui); font-weight: 800;
   letter-spacing: var(--tracking-wide); text-transform: uppercase; font-size: var(--text-xs);
+  color: #fca5a5;
 }
 .dismiss-flash.show, .save-flash.show { animation: verto-pop 0.7s var(--ease-out) forwards; }
 
@@ -451,9 +463,13 @@ html, body {
 }
 
 @media (max-width: 720px) {
-  .tabbar .tab { font-size: 9.5px; padding: 6px 2px; }
+  .tabbar {
+    min-height: 42px;
+    padding: 0 4px;
+  }
+  .tabbar .tab { font-size: 11.5px; padding: 9px 4px; }
 }
 
 @media (max-width: 400px) {
-  .tabbar .tab { font-size: 8.5px; }
+  .tabbar .tab { font-size: 10.5px; padding: 8px 3px; }
 }
