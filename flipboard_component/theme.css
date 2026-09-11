@@ -94,8 +94,9 @@
 
   --gap: 18px;
   --row: 8px;
-  --tabbar-h: 38px;
-  --masthead-h: 96px;
+  --tagline-h: 22px;
+  --tabbar-h: 36px;
+  --header-h: calc(var(--tagline-h) + var(--tabbar-h));
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -124,18 +125,27 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* — Masthead presse — */
-.masthead {
+/* — Header fin : tagline + onglets — */
+.header-tagline {
+  margin: 0;
+  padding: 5px 12px 4px;
   text-align: center;
-  padding: var(--space-3) var(--space-4) var(--space-2);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0.03em;
   border-bottom: 1px solid var(--line);
-  min-height: calc(var(--masthead-h) - var(--tabbar-h));
+  line-height: 1.2;
+  min-height: var(--tagline-h);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
+/* — Logo Bodoni (splash) — */
+.splash-wordmark,
 .masthead-wordmark {
   font-family: var(--font-logo);
   display: flex;
@@ -160,17 +170,70 @@ html, body {
   text-transform: uppercase;
 }
 
-.masthead-tagline {
-  margin: var(--space-2) 0 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-sm);
-  font-style: italic;
-  font-weight: 400;
-  color: var(--muted);
-  letter-spacing: 0.02em;
+.splash-wordmark .wm-v {
+  font-size: clamp(3.5rem, 14vw, 5.5rem);
 }
 
-/* — Barre d'onglets (haut, après scroll) — */
+.splash-wordmark .wm-rest {
+  font-size: clamp(1.2rem, 4.5vw, 2rem);
+}
+
+/* — Splash lancement — */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background: linear-gradient(165deg, var(--royal-600) 0%, var(--royal-800) 55%, var(--royal-950) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+
+.splash.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.splash.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash-tagline {
+  margin: var(--space-3) 0 0;
+  min-height: 1.4em;
+  font-family: var(--font-ui);
+  font-size: clamp(13px, 2.8vw, 17px);
+  font-style: italic;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.splash-tagline::after {
+  content: "|";
+  display: inline-block;
+  margin-left: 2px;
+  animation: splash-blink 0.7s step-end infinite;
+  opacity: 0.7;
+}
+
+.splash-tagline.done::after {
+  display: none;
+}
+
+@keyframes splash-blink {
+  50% { opacity: 0; }
+}
+
+/* — Barre d'onglets — */
 .tabbar {
   flex: 0 0 auto;
   display: flex;
@@ -347,9 +410,7 @@ html, body {
 }
 
 @media (max-width: 720px) {
-  .wm-v { font-size: clamp(1.9rem, 9vw, 2.6rem); }
-  .wm-rest { font-size: clamp(0.75rem, 3.2vw, 0.95rem); letter-spacing: 0.14em; }
-  .masthead-tagline { font-size: 10px; }
+  .header-tagline { font-size: 9.5px; padding: 4px 8px 3px; }
   .tabbar .tab { font-size: 9.5px; padding: 6px 2px; }
 }
 
