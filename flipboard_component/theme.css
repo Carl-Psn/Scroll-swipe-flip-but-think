@@ -463,8 +463,9 @@ html, body {
 }
 
 @media (max-width: 720px) {
+  :root { --tabbar-h: 42px; }
   .tabbar {
-    min-height: 42px;
+    min-height: var(--tabbar-h);
     padding: 0 4px;
   }
   .tabbar .tab { font-size: 11.5px; padding: 9px 4px; }
