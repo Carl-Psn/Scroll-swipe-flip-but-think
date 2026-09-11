@@ -27,13 +27,14 @@
   .bar-full {
     display: flex; flex-direction: column; align-items: stretch;
     overflow: hidden;
-    max-height: 120px; opacity: 1;
+    max-height: 72px; opacity: 1;
     transition: max-height .28s ease, opacity .2s ease;
   }
 
-  /* collapsed masthead au scroll */
-  header.top.collapsed { background: rgba(10, 20, 64, .94); backdrop-filter: blur(8px); }
-  header.top.collapsed .bar-full { max-height: 0; opacity: 0; padding: 0; }
+  /* Après le 1er scroll : masthead masqué, onglets compacts en haut */
+  header.top.scrolled { background: rgba(10, 20, 64, .96); backdrop-filter: blur(8px); }
+  header.top.scrolled .bar-full { max-height: 0; opacity: 0; padding: 0; border: none; }
+  header.top:not(.scrolled) .tabbar { display: none; }
 
   .stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .stage.has-filter .pager { top: 40px; }
@@ -78,9 +79,12 @@
 
   .page-inner {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 0 5vw 58px;
+    padding: 0 4vw 10px;
     max-width: 1000px; margin: 0 auto;
+    z-index: 8;
+    pointer-events: none;
   }
+  .page-inner > * { pointer-events: auto; }
   .page.noimg .page-inner { bottom: auto; top: 50%; transform: translateY(-50%); }
 
   /* scrim derrière le texte pour la lisibilité sur images claires */
@@ -142,12 +146,15 @@
   }
   .page-meta { color: #c7c7cc; font-size: 12px; margin-bottom: 0; display:flex; gap:8px; align-items:center; }
   .page-meta .dot { width:3px; height:3px; border-radius:50%; background:#9a9aa2; }
-  .page-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .page-actions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    position: relative; z-index: 12;
+  }
   .pbtn {
     border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08);
     backdrop-filter: blur(6px); color: #fff; padding: 8px 14px; border-radius: 10px;
     cursor: pointer; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;
-    transition: all .15s ease;
+    transition: all .15s ease; position: relative; z-index: 12;
   }
   .pbtn:hover { background: rgba(255,255,255,.16); }
   .pbtn.read { background: var(--accent); border-color: var(--accent); }
@@ -155,12 +162,13 @@
   .pbtn.save.on { background: var(--gold); border-color: var(--gold); color: #1a1a1a; }
 
   .next-pill {
-    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 10px;
-    background: rgba(0,0,0,.5); backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,.14); color: #e4e4e7;
-    padding: 9px 16px; border-radius: 999px; font-size: 13px; max-width: 80vw;
-    cursor: pointer;
+    position: absolute; right: 12px; top: 12px; left: auto; bottom: auto;
+    transform: none;
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,.12); color: #e4e4e7;
+    padding: 5px 10px; border-radius: 999px; font-size: 11px; max-width: 46vw;
+    cursor: pointer; z-index: 6;
   }
   .next-pill .chev { animation: bob 1.6s ease-in-out infinite; font-size: 14px; color: #fff; }
   .next-pill .nt {
@@ -415,7 +423,7 @@
 
   /* ---------- BACK TO TOP ---------- */
   .back-top {
-    position: fixed; right: 8px; bottom: calc(var(--tabbar-h) + 8px); z-index: 30;
+    position: fixed; right: 8px; bottom: 8px; z-index: 30;
     display: flex; align-items: center; gap: 6px;
     border: 1px solid rgba(255,255,255,.16); background: rgba(19,19,22,.82);
     backdrop-filter: blur(10px); color: #fff;
@@ -493,12 +501,12 @@
 
   @media (max-width: 720px) {
     header.top { padding: 0; background: var(--bg-elevated); }
-    header.top.collapsed .bar-full { max-height: 0; opacity: 0; }
-    .page-inner { padding: 0 4vw 52px; }
+    .page-inner { padding: 0 3vw 8px; }
     .page-textwrap { padding: 10px 14px 12px; }
     .page-title { font-size: clamp(18px, 4.8vw, 28px); }
     .page-title .title-rest { font-size: 0.78em; }
-    .back-top { right: 6px; bottom: calc(var(--tabbar-h) + 6px); padding: 7px 10px; font-size: 11px; }
+    .back-top { right: 6px; bottom: 6px; padding: 7px 10px; font-size: 11px; }
+    .next-pill { top: 8px; right: 8px; max-width: 52vw; }
   }
 </style>
 </head>
@@ -513,6 +521,12 @@
         <p class="masthead-tagline">Scroll. Swipe. Flip. but Think.</p>
       </div>
     </div>
+    <nav class="tabbar" id="tabbar" aria-label="Navigation principale">
+      <button type="button" class="tab active" data-view="discover" id="tabDiscover">Découvrir</button>
+      <button type="button" class="tab" data-view="filter" id="tabFilter">Filtrer</button>
+      <button type="button" class="tab" data-view="personalize" id="tabPersonalize">Personnaliser</button>
+      <button type="button" class="tab" data-view="saved" id="tabSaved">Mon Magazine<span class="count" id="savedCount"></span></button>
+    </nav>
   </header>
 
   <div class="stage">
@@ -558,13 +572,6 @@
     </div>
     <div class="saved-wrap" id="savedWrap"><div class="grid" id="grid"></div></div>
   </div>
-
-  <nav class="tabbar" id="tabbar" aria-label="Navigation principale">
-    <button class="tab active" data-view="discover" id="tabDiscover">Découvrir</button>
-    <button class="tab" data-view="filter" id="tabFilter">Filtrer</button>
-    <button class="tab" data-view="personalize" id="tabPersonalize">Personnaliser</button>
-    <button class="tab" data-view="saved" id="tabSaved">Mon Magazine<span class="count" id="savedCount">0</span></button>
-  </nav>
 </div>
 
 <!-- READER -->
@@ -607,9 +614,9 @@
   function setHeight(h) { post("streamlit:setFrameHeight", { height: h }); }
   function fitHeight() {
     var h = 760;
-    try { h = Math.max(560, (window.parent.innerHeight || window.innerHeight) - 120); }
-    catch (e) { h = Math.max(560, window.innerHeight || 760); }
-    setHeight(h);
+    try { h = window.parent.innerHeight || window.innerHeight; }
+    catch (e) { h = window.innerHeight || 760; }
+    setHeight(Math.max(560, h));
   }
 
   // ---------- State ----------
@@ -1037,11 +1044,10 @@
     if (!findSource(S.filterSource)) S.filterSource = null;
   }
 
-  // ---------- Collapsible top bar ----------
-  function setCollapsed(c) {
-    if (S.collapsed === c) return;
-    S.collapsed = c;
-    topbar.classList.toggle("collapsed", c);
+  // ---------- Chrome : masthead → onglets après scroll ----------
+  function updateChrome(scrollTop, pageIndex) {
+    var scrolled = S.view !== "discover" || (pageIndex || 0) > 0 || (scrollTop || 0) > 8;
+    topbar.classList.toggle("scrolled", scrolled);
   }
   var IS_MOBILE = window.matchMedia("(max-width: 720px)").matches;
   window.matchMedia("(max-width: 720px)").addEventListener("change", function (e) { IS_MOBILE = e.matches; });
@@ -1198,10 +1204,7 @@
     toast("Retour au plus récent");
   });
 
-  function onContentScroll(top) {
-    if (top <= 4) { S.manualBar = false; setCollapsed(false); }
-    else if (!S.manualBar) { setCollapsed(true); }
-  }
+  var IS_TOUCH = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
 
   // ---------- PAGER ----------
   function idxOf(page) { return S.pageEls.indexOf(page); }
@@ -1287,8 +1290,8 @@
             "</div>" +
           "</div>" +
           '<div class="page-actions">' +
-            '<button class="pbtn read" data-act="read">📖 Lire l\'article</button>' +
-            '<button class="pbtn save' + (isSaved(a.id) ? " on" : "") + '" data-act="save">' +
+            '<button type="button" class="pbtn read" data-act="read">📖 Lire l\'article</button>' +
+            '<button type="button" class="pbtn save' + (isSaved(a.id) ? " on" : "") + '" data-act="save">' +
               (isSaved(a.id) ? "★ Enregistré" : "🔖 Enregistrer") + "</button>" +
           "</div>" +
         "</div>" +
@@ -1380,7 +1383,14 @@
     var trackDel = page.querySelector(".swipe-track.del");
     var hinticDel = page.querySelector(".swipe-hintic.del");
 
-    page.querySelector('[data-act="read"]').addEventListener("click", function (e) { e.stopPropagation(); resetTextwrapFlip(page); openReader(a.id); });
+    var readBtn = page.querySelector('[data-act="read"]');
+    if (readBtn) {
+      readBtn.addEventListener("click", function (e) {
+        e.stopPropagation(); e.preventDefault();
+        resetTextwrapFlip(page);
+        openReader(a.id);
+      });
+    }
     page.querySelector('[data-act="save"]').addEventListener("click", function (e) {
       e.stopPropagation();
       var on = toggleSaved(a.id);
@@ -1497,9 +1507,9 @@
       resetAllTextwrapFlips();
       S.current = i; loadAround(i); updateBackToTop();
     }
-    onContentScroll(pager.scrollTop);
+    updateChrome(pager.scrollTop, i);
   });
-  savedWrap.addEventListener("scroll", function () { onContentScroll(savedWrap.scrollTop); });
+  savedWrap.addEventListener("scroll", function () { updateChrome(savedWrap.scrollTop, 1); });
 
   // ---------- SAVED GRID ----------
   var imgObserver = new IntersectionObserver(function (entries) {
@@ -1579,6 +1589,7 @@
     savedWrap.style.display = v === "saved" ? "block" : "none";
     updateBackToTop();
     updateFilterBar();
+    updateChrome(v === "discover" ? pager.scrollTop : 1, v === "discover" ? S.current : 1);
     if (v === "saved") buildSavedGrid();
     else if (v === "filter") buildFilterView();
     else if (v === "personalize") renderPersonalizeView();
@@ -1734,7 +1745,9 @@
   function openReader(id) {
     var a = S.index[id]; if (!a) return;
     var useFlip = (IS_MOBILE || IS_TOUCH) && S.view === "discover";
-    var page = S.pageEls[S.current];
+    var pageIdx = S.feed.findIndex(function (x) { return x.id === id; });
+    if (pageIdx < 0) pageIdx = S.current;
+    var page = S.pageEls[pageIdx];
     var card = page && page.querySelector(".page-card");
 
     function reveal() {
@@ -1959,6 +1972,7 @@
       buildFilterView();
       renderPersonalizeView();
       fitHeight();
+      updateChrome(0, 0);
       if (!feedsConfigEqual(
         S.customFeeds, serverFeeds,
         S.disabledFeeds, serverDisabled,
