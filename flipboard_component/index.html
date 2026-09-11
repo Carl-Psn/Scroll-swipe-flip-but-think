@@ -347,7 +347,7 @@
   .reader-overlay.open { opacity: 1; pointer-events: auto; }
   .reader {
     position: absolute; top: 0; right: 0; bottom: 0;
-    width: var(--reader-width, 40vw);
+    width: var(--reader-width, 60vw);
     max-width: 100%;
     box-shadow: -20px 0 60px rgba(0,0,0,.35);
     transform: translateX(100%); transition: transform .35s cubic-bezier(.2,.8,.2,1);
@@ -394,7 +394,7 @@
   .reader-overlay.flip-enter.open .reader { transform: rotateY(0deg); }
   @media (min-width: 721px) {
     .reader-overlay.flip-enter .reader {
-      width: var(--reader-width, 40vw); right: 0; left: auto; border-left: 1px solid var(--line);
+      width: var(--reader-width, 60vw); right: 0; left: auto; border-left: 1px solid var(--line);
       transform: translateX(100%); transform-origin: right center;
       transition: transform .35s cubic-bezier(.2,.8,.2,1);
     }
@@ -1714,10 +1714,10 @@
   var overlay = document.getElementById("readerOverlay");
   var readerPanel = document.getElementById("readerPanel");
   var resizeHandle = document.getElementById("readerResizeHandle");
-  var READER_WIDTH_KEY = "flip_reader_width_v1";
+  var READER_WIDTH_KEY = "flip_reader_width_v2";
   var MIN_READER_W = 420;
   var MAX_READER_RATIO = 0.92;
-  var DEFAULT_READER_RATIO = 0.40;
+  var DEFAULT_READER_RATIO = 0.60;
 
   function isDesktopReader() { return window.innerWidth >= 721; }
 
@@ -1818,6 +1818,14 @@
     if (!entry) return "";
     return typeof entry === "string" ? entry : (entry.text || "");
   }
+  function isSummaryError(text) {
+    if (!text) return false;
+    return /^Erreur Mistral/i.test(text) || /limite Mistral/i.test(text) || /rate limit/i.test(text);
+  }
+  function validSummaryText(entry) {
+    var text = summaryText(entry);
+    return isSummaryError(text) ? "" : text;
+  }
   function summaryPoints(entry) {
     if (!entry || typeof entry === "string") return 5;
     return entry.points || 5;
@@ -1867,8 +1875,9 @@
   function renderReaderActions(a) {
     rActions.innerHTML = "";
     var summaryEntry = S.enrich.summary[a.id];
-    var hasSummary = !!summaryText(summaryEntry);
-    var loadingSummary = S.pending[a.id] && S.pending[a.id].summary && !hasSummary;
+    var summaryRaw = summaryText(summaryEntry);
+    var hasSummary = !!validSummaryText(summaryEntry);
+    var loadingSummary = S.pending[a.id] && S.pending[a.id].summary && !hasSummary && !isSummaryError(summaryRaw);
 
     var ctrl = document.createElement("div");
     ctrl.className = "summary-ctrl";
@@ -1886,7 +1895,7 @@
     }
     var sb = document.createElement("button");
     sb.className = "btn gold";
-    sb.innerHTML = loadingSummary ? '<span class="spinner"></span> Analyse en cours…' : (hasSummary ? "✨ Résumé généré" : "✨ Résumé L2 (IA)");
+    sb.innerHTML = loadingSummary ? '<span class="spinner"></span> Analyse en cours…' : (hasSummary ? "✨ Résumé généré" : "✨ Résumer");
     sb.disabled = loadingSummary || hasSummary;
     sb.addEventListener("click", function () {
       request(a.id, "summary", { summaryPoints: parseInt(sel.value, 10) || 5 });
@@ -1922,12 +1931,15 @@
 
   function renderReaderSummary(a) {
     var summaryEntry = S.enrich.summary[a.id];
-    var summary = summaryText(summaryEntry);
-    var loading = S.pending[a.id] && S.pending[a.id].summary && !summary;
+    var summaryRaw = summaryText(summaryEntry);
+    var summary = validSummaryText(summaryEntry);
+    var loading = S.pending[a.id] && S.pending[a.id].summary && !summary && !isSummaryError(summaryRaw);
     var pts = summaryPoints(summaryEntry);
     var headPts = pts === 1 ? "1 point" : pts + " points";
     if (summary) {
       rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé en ' + headPts + ' · Mistral</div>' + mdLight(summary) + "</div>";
+    } else if (isSummaryError(summaryRaw)) {
+      rSummary.innerHTML = '<div class="summary-box summary-error"><div class="s-head">⚠️ Résumé indisponible</div><p>' + esc(summaryRaw) + "</p></div>";
     } else if (loading) {
       rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé · Mistral</div><div class="loading-block"><span class="spinner"></span> Génération du résumé…</div></div>';
     } else rSummary.innerHTML = "";
@@ -2020,7 +2032,9 @@
     var a = S.index[S.openId]; if (!a) return;
     if (S.pending[a.id]) {
       if (S.enrich.text[a.id]) S.pending[a.id].text = false;
-      if (summaryText(S.enrich.summary[a.id])) S.pending[a.id].summary = false;
+      if (validSummaryText(S.enrich.summary[a.id]) || isSummaryError(summaryText(S.enrich.summary[a.id]))) {
+        S.pending[a.id].summary = false;
+      }
     }
     renderReaderActions(a); renderReaderBody(a); renderReaderSummary(a);
   }

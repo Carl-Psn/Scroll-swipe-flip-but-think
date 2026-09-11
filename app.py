@@ -67,18 +67,21 @@ def nettoyer_html(raw_html):
 # FONCTION : GENERATION RESUME
 # ==============================
 
-def generer_resume(texte, n_points=5):
-    try:
-        n_points = max(1, min(5, int(n_points)))
-        texte_utilise = texte[:MAX_CHARS]
-        point_label = "point majeur" if n_points == 1 else "points majeurs"
+def _mistral_rate_limited(exc):
+    msg = str(exc).lower()
+    return (
+        "429" in str(exc)
+        or "rate limit" in msg
+        or "ratelimited" in msg
+        or "1300" in msg
+    )
 
-        response = client.chat.complete(
-            model="mistral-small-latest",
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"""
+
+def generer_resume(texte, n_points=5, max_retries=4):
+    n_points = max(1, min(5, int(n_points)))
+    texte_utilise = texte[:MAX_CHARS]
+    point_label = "point majeur" if n_points == 1 else "points majeurs"
+    prompt = f"""
 Fais un résumé de l'article suivant en {n_points} {point_label}.
 
 Le résumé commencera par une problématique générale formulée sous forme de question paradoxale.
@@ -93,14 +96,28 @@ Ensuite :
 Article :
 {texte_utilise}
 """
-                }
-            ]
+
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            last_err = e
+            if _mistral_rate_limited(e) and attempt < max_retries - 1:
+                time.sleep(min(2 ** attempt * 2, 24))
+                continue
+            break
+
+    if last_err and _mistral_rate_limited(last_err):
+        return (
+            "Le service de résumé IA est momentanément saturé (limite Mistral atteinte). "
+            "Patientez une minute puis relancez « Résumer »."
         )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        return f"Erreur Mistral : {str(e)}"
+    return f"Erreur Mistral : {last_err}"
 
 
 # ==============================
@@ -761,11 +778,15 @@ def obtenir_paragraphes(article):
 
 
 @st.cache_data(show_spinner=False)
-def resume_pour_url(url, fallback_html, n_points=5):
+def _texte_pour_resume(url, fallback_html):
     texte = extraire_texte_article(url)
     if len(texte) < 800:
         texte = nettoyer_html(fallback_html)
-    return generer_resume(texte, n_points)
+    return texte
+
+
+def resume_pour_url(url, fallback_html, n_points=5):
+    return generer_resume(_texte_pour_resume(url, fallback_html), n_points)
 
 
 # ==============================
@@ -776,7 +797,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 # Nom versionné pour invalider le cache navigateur après déploiement
 # (Streamlit sert le composant sous app.<name>/index.html).
 _flipboard = components.declare_component(
-    "flipboard_magazine_v14",
+    "flipboard_magazine_v15",
     path=os.path.join(_DIR, "flipboard_component"),
 )
 
@@ -786,7 +807,7 @@ def flipboard(articles, enrichments):
         articles=articles,
         enrichments=enrichments,
         default=None,
-        key="flipboard_magazine_v14",
+        key="flipboard_magazine_v15",
     )
 
 
@@ -910,17 +931,32 @@ if isinstance(valeur, dict) and valeur.get("nonce") != st.session_state.last_non
             if want in ("text", "both") and aid not in st.session_state.enrich_text:
                 st.session_state.enrich_text[aid] = obtenir_paragraphes(art)
 
-            if want in ("summary", "both") and aid not in st.session_state.enrich_summary:
+            if want in ("summary", "both"):
                 n_points = valeur.get("summary_points", 5)
                 try:
                     n_points = max(1, min(5, int(n_points)))
                 except (TypeError, ValueError):
                     n_points = 5
-                st.session_state.enrich_summary[aid] = {
-                    "text": resume_pour_url(
-                        art["link"], art["summary_html"], n_points
-                    ),
-                    "points": n_points,
-                }
+                existing = st.session_state.enrich_summary.get(aid)
+                existing_text = (
+                    existing.get("text")
+                    if isinstance(existing, dict)
+                    else existing
+                )
+                rate_limited = (
+                    isinstance(existing_text, str)
+                    and (
+                        "limite Mistral" in existing_text
+                        or "Rate limit" in existing_text
+                        or "ratelimited" in existing_text.lower()
+                    )
+                )
+                if aid not in st.session_state.enrich_summary or rate_limited:
+                    st.session_state.enrich_summary[aid] = {
+                        "text": resume_pour_url(
+                            art["link"], art["summary_html"], n_points
+                        ),
+                        "points": n_points,
+                    }
 
         st.rerun()
