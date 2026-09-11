@@ -27,7 +27,7 @@
   .bar-full {
     display: flex; flex-direction: column; align-items: stretch;
     overflow: hidden;
-    max-height: 72px; opacity: 1;
+    max-height: var(--masthead-h); opacity: 1;
     transition: max-height .28s ease, opacity .2s ease;
   }
 
@@ -79,8 +79,9 @@
 
   .page-inner {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 0 4vw 10px;
+    padding: 0 4vw 50px;
     max-width: 1000px; margin: 0 auto;
+    max-height: 42vh;
     z-index: 8;
     pointer-events: none;
   }
@@ -89,12 +90,13 @@
 
   /* scrim derrière le texte pour la lisibilité sur images claires */
   .page-textwrap {
-    display: inline-block; max-width: min(780px, 92%);
+    display: inline-block; max-width: min(720px, 92%);
     background: rgba(8, 8, 11, 0.5);
     -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px; padding: 12px 16px 14px; margin-bottom: 10px;
+    border-radius: 14px; padding: 10px 14px 12px; margin-bottom: 8px;
     cursor: pointer; perspective: 1200px;
+    max-height: 26vh; overflow: hidden;
   }
   .page.noimg .page-textwrap { background: rgba(8, 8, 11, 0.35); border-color: transparent; }
 
@@ -162,13 +164,14 @@
   .pbtn.save.on { background: var(--gold); border-color: var(--gold); color: #1a1a1a; }
 
   .next-pill {
-    position: absolute; right: 12px; top: 12px; left: auto; bottom: auto;
-    transform: none;
-    display: flex; align-items: center; gap: 6px;
-    background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
-    border: 1px solid rgba(255,255,255,.12); color: #e4e4e7;
-    padding: 5px 10px; border-radius: 999px; font-size: 11px; max-width: 46vw;
-    cursor: pointer; z-index: 6;
+    position: absolute; left: 50%; bottom: 12px;
+    transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.5); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.14); color: #e4e4e7;
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; max-width: 78vw;
+    cursor: pointer; z-index: 9;
+    pointer-events: auto;
   }
   .next-pill .chev { animation: bob 1.6s ease-in-out infinite; font-size: 14px; color: #fff; }
   .next-pill .nt {
@@ -423,17 +426,19 @@
 
   /* ---------- BACK TO TOP ---------- */
   .back-top {
-    position: fixed; right: 8px; bottom: 8px; z-index: 30;
+    position: fixed; right: 10px; top: calc(var(--tabbar-h) + 10px); bottom: auto;
+    z-index: 45;
     display: flex; align-items: center; gap: 6px;
-    border: 1px solid rgba(255,255,255,.16); background: rgba(19,19,22,.82);
+    border: 1px solid rgba(255,255,255,.2); background: rgba(15, 29, 92, .9);
     backdrop-filter: blur(10px); color: #fff;
     padding: 8px 12px; border-radius: 999px; cursor: pointer;
     font-size: 12px; font-weight: 700;
-    box-shadow: 0 4px 18px rgba(0,0,0,.4);
-    opacity: 0; pointer-events: none; transform: translateY(8px);
+    box-shadow: 0 4px 18px rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none; transform: translateY(-6px);
     transition: opacity .22s ease, transform .22s ease, background .15s ease;
   }
-  .back-top:hover { background: rgba(30,30,36,.95); border-color: rgba(255,255,255,.28); }
+  .back-top.dock-masthead { top: calc(var(--masthead-h) + 10px); }
+  .back-top:hover { background: rgba(26, 48, 120, .95); border-color: rgba(255,255,255,.3); }
   .back-top.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
   .back-top .ic { font-size: 14px; line-height: 1; }
 
@@ -501,12 +506,12 @@
 
   @media (max-width: 720px) {
     header.top { padding: 0; background: var(--bg-elevated); }
-    .page-inner { padding: 0 3vw 8px; }
-    .page-textwrap { padding: 10px 14px 12px; }
+    .page-inner { padding: 0 3vw 46px; max-height: 44vh; }
+    .page-textwrap { padding: 10px 14px 12px; max-height: 28vh; }
     .page-title { font-size: clamp(18px, 4.8vw, 28px); }
     .page-title .title-rest { font-size: 0.78em; }
-    .back-top { right: 6px; bottom: 6px; padding: 7px 10px; font-size: 11px; }
-    .next-pill { top: 8px; right: 8px; max-width: 52vw; }
+    .back-top { right: 6px; padding: 7px 10px; font-size: 11px; }
+    .next-pill { bottom: 10px; max-width: 84vw; }
   }
 </style>
 </head>
@@ -1056,6 +1061,7 @@
     var btn = document.getElementById("backToTop");
     var show = S.view === "discover" && S.feed.length > 1 && S.current > 0;
     btn.classList.toggle("show", show);
+    btn.classList.toggle("dock-masthead", show && !topbar.classList.contains("scrolled"));
   }
 
   function renderPersonalizeView() {
