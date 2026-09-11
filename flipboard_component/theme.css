@@ -354,6 +354,15 @@ html, body {
   border-color: transparent;
 }
 
+.page-montaigne .page-textwrap .flip-card-front,
+.page-montaigne .page-textwrap .flip-card-back {
+  opacity: 0;
+}
+
+.page-montaigne .page-textwrap .page-title::after {
+  opacity: 0;
+}
+
 .page.noimg .page-media { position: relative; }
 .page.noimg .page-media::after {
   content: "";
