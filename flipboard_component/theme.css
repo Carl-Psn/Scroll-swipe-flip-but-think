@@ -94,9 +94,8 @@
 
   --gap: 18px;
   --row: 8px;
-  --tagline-h: 22px;
   --tabbar-h: 36px;
-  --header-h: calc(var(--tagline-h) + var(--tabbar-h));
+  --header-h: var(--tabbar-h);
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -123,25 +122,6 @@ html, body {
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* — Header fin : tagline + onglets — */
-.header-tagline {
-  margin: 0;
-  padding: 5px 12px 4px;
-  text-align: center;
-  font-family: var(--font-ui);
-  font-size: 10.5px;
-  font-style: italic;
-  font-weight: 400;
-  color: var(--muted);
-  letter-spacing: 0.03em;
-  border-bottom: 1px solid var(--line);
-  line-height: 1.2;
-  min-height: var(--tagline-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* — Logo Bodoni (splash) — */
@@ -297,7 +277,7 @@ html, body {
 }
 
 .page-title {
-  font-family: var(--font-editorial);
+  font-family: var(--font-logo);
   font-weight: 700;
   letter-spacing: var(--tracking-tight);
   padding-bottom: var(--space-2);
@@ -410,7 +390,6 @@ html, body {
 }
 
 @media (max-width: 720px) {
-  .header-tagline { font-size: 9.5px; padding: 4px 8px 3px; }
   .tabbar .tab { font-size: 9.5px; padding: 6px 2px; }
 }
 
