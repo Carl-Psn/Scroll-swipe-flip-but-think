@@ -776,7 +776,7 @@ _DIR = os.path.dirname(os.path.abspath(__file__))
 # Nom versionné pour invalider le cache navigateur après déploiement
 # (Streamlit sert le composant sous app.<name>/index.html).
 _flipboard = components.declare_component(
-    "flipboard_magazine_v4",
+    "flipboard_magazine_v5",
     path=os.path.join(_DIR, "flipboard_component"),
 )
 
@@ -802,7 +802,7 @@ st.markdown(
     #MainMenu, header, footer {visibility: hidden;}
     [data-testid="stToolbar"] {display: none;}
     [data-testid="stDecoration"] {display: none;}
-    .stApp {background: #0a1220;}
+    .stApp {background: #0a1440;}
     .block-container {padding: 0.3rem 0.5rem 0 0.5rem; max-width: 100%;}
     [data-testid="stAppViewBlockContainer"] {padding: 0.3rem 0.5rem 0 0.5rem;}
     iframe {border: none !important;}
