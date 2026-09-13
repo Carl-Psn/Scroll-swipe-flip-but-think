@@ -2,4 +2,3 @@ streamlit
 feedparser
 requests
 beautifulsoup4
-mistralai==1.2.5
