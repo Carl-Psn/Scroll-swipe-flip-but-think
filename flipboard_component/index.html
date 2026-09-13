@@ -184,7 +184,7 @@
   .pbtn.save.on { background: var(--gold); border-color: var(--gold); color: #1a1a1a; }
 
   .next-pill {
-    position: absolute; left: 50%; bottom: 24px;
+    position: absolute; left: 50%; bottom: 40px;
     transform: translateX(-50%);
     display: flex; align-items: center; gap: 8px;
     background: rgba(0,0,0,.5); backdrop-filter: blur(8px);
@@ -455,7 +455,7 @@
 
   /* ---------- BACK TO TOP ---------- */
   .back-top {
-    position: fixed; right: 10px; bottom: 24px; top: auto;
+    position: fixed; top: 10px; right: 10px; bottom: auto;
     z-index: 45;
     display: flex; align-items: center; gap: 6px;
     border: 1px solid rgba(255,255,255,.2); background: rgba(15, 29, 92, .9);
@@ -463,7 +463,7 @@
     padding: 8px 12px; border-radius: 999px; cursor: pointer;
     font-size: 12px; font-weight: 700;
     box-shadow: 0 4px 18px rgba(0,0,0,.45);
-    opacity: 0; pointer-events: none; transform: translateY(8px);
+    opacity: 0; pointer-events: none; transform: translateY(-8px);
     transition: opacity .22s ease, transform .22s ease, background .15s ease;
   }
   .back-top:hover { background: rgba(26, 48, 120, .95); border-color: rgba(255,255,255,.3); }
@@ -537,8 +537,8 @@
     .page-textwrap { padding: 14px 16px 16px; }
     .page-title { font-size: clamp(20px, 5.5vw, 30px); }
     .page-title .title-rest { font-size: 0.78em; }
-    .back-top { right: 6px; bottom: 20px; padding: 7px 10px; font-size: 11px; }
-    .next-pill { bottom: 20px; max-width: 88vw; }
+    .back-top { top: 8px; right: 6px; bottom: auto; padding: 7px 10px; font-size: 11px; }
+    .next-pill { bottom: 36px; max-width: 88vw; }
   }
 </style>
 </head>
