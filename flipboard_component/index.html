@@ -935,8 +935,14 @@
       else localStorage.removeItem(GK);
     } catch (e) {}
   }
+  function getGeminiApiKey() {
+    var saved = (S.geminiApiKey || "").trim();
+    if (saved) return saved;
+    var input = document.getElementById("geminiApiKey");
+    return input ? (input.value || "").trim() : "";
+  }
   function hasGeminiApiKey() {
-    return !!(S.geminiApiKey && S.geminiApiKey.trim());
+    return !!getGeminiApiKey();
   }
   function syncSettingsToPython() {
     setValue({
@@ -1911,7 +1917,7 @@
     S.pending[id][want] = true;
     var payload = { nonce: Date.now() + "-" + Math.random().toString(36).slice(2), id: id, want: want };
     if (opts && opts.summaryPoints != null) payload.summary_points = opts.summaryPoints;
-    if (want === "summary" || want === "both") payload.gemini_api_key = S.geminiApiKey || "";
+    if (want === "summary" || want === "both") payload.gemini_api_key = getGeminiApiKey();
     setValue(payload);
   }
   function summaryText(entry) {
@@ -1977,7 +1983,8 @@
     var summaryEntry = S.enrich.summary[a.id];
     var summaryRaw = summaryText(summaryEntry);
     var hasSummary = !!validSummaryText(summaryEntry);
-    var loadingSummary = S.pending[a.id] && S.pending[a.id].summary && !hasSummary && !isSummaryError(summaryRaw);
+    var summaryFailed = isSummaryError(summaryRaw);
+    var loadingSummary = S.pending[a.id] && S.pending[a.id].summary && !hasSummary && !summaryFailed;
 
     var ctrl = document.createElement("div");
     ctrl.className = "summary-ctrl";
@@ -1995,13 +2002,21 @@
     }
     var sb = document.createElement("button");
     sb.className = "btn gold";
-    sb.innerHTML = loadingSummary ? '<span class="spinner"></span> Analyse en cours…' : (hasSummary ? "✨ Résumé généré" : "✨ Résumer");
+    sb.innerHTML = loadingSummary
+      ? '<span class="spinner"></span> Analyse en cours…'
+      : (hasSummary ? "✨ Résumé généré" : (summaryFailed ? "↻ Réessayer" : "✨ Résumer"));
     sb.disabled = loadingSummary || hasSummary || !hasGeminiApiKey();
     sb.title = hasGeminiApiKey() ? "" : "Ajoutez votre clé API Gemini dans Personnaliser";
     sb.addEventListener("click", function () {
       if (!hasGeminiApiKey()) {
         toast("Ajoutez votre clé API Gemini dans Personnaliser");
         return;
+      }
+      var apiKey = getGeminiApiKey();
+      if (apiKey !== S.geminiApiKey) {
+        S.geminiApiKey = apiKey;
+        persistGeminiApiKey();
+        syncSettingsToPython();
       }
       request(a.id, "summary", { summaryPoints: parseInt(sel.value, 10) || 5 });
       renderReaderActions(a);
