@@ -455,7 +455,7 @@
 
   /* ---------- BACK TO TOP ---------- */
   .back-top {
-    position: fixed; top: 10px; right: 10px; bottom: auto;
+    position: fixed; top: calc(var(--header-h) + 8px); right: 10px; bottom: auto;
     z-index: 45;
     display: flex; align-items: center; gap: 6px;
     border: 1px solid rgba(255,255,255,.2); background: rgba(15, 29, 92, .9);
@@ -537,7 +537,7 @@
     .page-textwrap { padding: 14px 16px 16px; }
     .page-title { font-size: clamp(20px, 5.5vw, 30px); }
     .page-title .title-rest { font-size: 0.78em; }
-    .back-top { top: 8px; right: 6px; bottom: auto; padding: 7px 10px; font-size: 11px; }
+    .back-top { top: calc(var(--header-h) + 6px); right: 6px; bottom: auto; padding: 7px 10px; font-size: 11px; }
     .next-pill { bottom: 36px; max-width: 88vw; }
   }
 </style>
