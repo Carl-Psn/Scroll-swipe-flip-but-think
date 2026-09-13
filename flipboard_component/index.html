@@ -532,6 +532,35 @@
   }
   .feed-reset:hover { background: var(--panel-2); border-color: #4a4a55; }
 
+  .api-key-section {
+    margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line);
+  }
+  .api-key-section h3 {
+    margin: 0 0 10px; font-size: 12px; font-weight: 800; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .api-key-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; margin-bottom: 12px;
+    padding: 5px 10px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .api-key-status.on { color: #86efac; border-color: rgba(134, 239, 172, .35); background: rgba(22, 101, 52, .18); }
+  .api-key-status.off { color: var(--muted); }
+  .api-key-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .api-key-save {
+    border: none; background: var(--accent); color: #fff;
+    padding: 10px 16px; border-radius: 10px; cursor: pointer;
+    font-size: 14px; font-weight: 700;
+  }
+  .api-key-save:hover { background: var(--accent-hover); }
+  .api-key-clear {
+    border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    padding: 10px 16px; border-radius: 10px; cursor: pointer;
+    font-size: 14px; font-weight: 700;
+  }
+  .api-key-clear:hover { background: var(--panel-2); border-color: #4a4a55; }
+
   @media (max-width: 720px) {
     .page-inner { padding: 0 4vw; transform: translateY(-46%); }
     .page-textwrap { padding: 14px 16px 16px; }
@@ -569,6 +598,21 @@
     <div class="filter-wrap" id="filterWrap"><div class="filter-list" id="filterList"></div></div>
     <div class="personalize-wrap" id="personalizeWrap">
       <p class="personalize-intro">Un seul package actif à la fois pour un chargement rapide. Choisissez un catalogue ou <strong>Créer mon propre feed</strong> pour n’utiliser que vos flux RSS. Le package <strong>Géopolitique</strong> est activé par défaut.</p>
+      <div class="api-key-section">
+        <h3>Résumés IA (Gemini)</h3>
+        <div class="api-key-status off" id="apiKeyStatus">Aucune clé API configurée</div>
+        <div class="feed-form">
+          <div class="field">
+            <label for="geminiApiKey">Clé API Gemini</label>
+            <input type="password" id="geminiApiKey" placeholder="Collez votre clé API ici" autocomplete="off" spellcheck="false" />
+          </div>
+          <p class="feed-note">La clé est stockée localement dans votre navigateur et n’est jamais préremplie. Obtenez une clé gratuite sur <a class="byedoom-link" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio ↗</a>.</p>
+          <div class="api-key-actions">
+            <button type="button" class="api-key-save" id="apiKeySave">Enregistrer la clé</button>
+            <button type="button" class="api-key-clear" id="apiKeyClear">Supprimer</button>
+          </div>
+        </div>
+      </div>
       <div class="feed-list"><h3>Packages</h3><div class="pkg-list" id="packageList"></div></div>
       <form class="feed-form" id="feedForm">
         <div class="field">
@@ -658,6 +702,7 @@
   var FK = "flip_magazine_custom_feeds_v1";
   var FDK = "flip_magazine_disabled_feeds_v1";
   var FPK = "flip_magazine_active_packages_v1";
+  var GK = "flip_magazine_gemini_api_key_v1";
   var MAX_ACTIVE_PACKAGES = 1;
   var DEFAULT_ACTIVE_PACKAGES = ["geopolitique"];
   var EMOJI_PRESETS = ["📰", "🧠", "🌍", "📚", "👁", "⚖️", "🏛️", "💡", "🔬", "✊", "🎭", "💼"];
@@ -669,6 +714,7 @@
     initialized: false, openId: null, pending: {}, collapsed: false, manualBar: false,
     customFeeds: loadCustomFeeds(), disabledFeeds: loadDisabledFeeds(),
     activePackages: loadActivePackages(), feedPackages: [], feedsSynced: false,
+    geminiApiKey: loadGeminiApiKey(),
     hasMore: false, loadingMore: false,
   };
 
@@ -879,6 +925,25 @@
   }
   function persistActivePackages() {
     try { localStorage.setItem(FPK, JSON.stringify(S.activePackages)); } catch (e) {}
+  }
+  function loadGeminiApiKey() {
+    try { return localStorage.getItem(GK) || ""; } catch (e) { return ""; }
+  }
+  function persistGeminiApiKey() {
+    try {
+      if (S.geminiApiKey) localStorage.setItem(GK, S.geminiApiKey);
+      else localStorage.removeItem(GK);
+    } catch (e) {}
+  }
+  function hasGeminiApiKey() {
+    return !!(S.geminiApiKey && S.geminiApiKey.trim());
+  }
+  function syncSettingsToPython() {
+    setValue({
+      nonce: Date.now() + "-settings-" + Math.random().toString(36).slice(2),
+      action: "settings",
+      gemini_api_key: S.geminiApiKey || "",
+    });
   }
   function feedsEqual(a, b) {
     return JSON.stringify(a || []) === JSON.stringify(b || []);
@@ -1125,9 +1190,20 @@
   }
 
   function renderPersonalizeView() {
+    renderApiKeySection();
     renderPackageList();
     renderActiveFeedList();
     renderFeedList();
+  }
+
+  function renderApiKeySection() {
+    var input = document.getElementById("geminiApiKey");
+    var status = document.getElementById("apiKeyStatus");
+    if (!input || !status) return;
+    if (input !== document.activeElement) input.value = S.geminiApiKey || "";
+    var configured = hasGeminiApiKey();
+    status.className = "api-key-status " + (configured ? "on" : "off");
+    status.textContent = configured ? "Clé API configurée" : "Aucune clé API configurée";
   }
 
   function renderPackageList() {
@@ -1262,6 +1338,23 @@
 
   document.getElementById("feedResetDismissed").addEventListener("click", function () {
     resetDismissedArticles();
+  });
+
+  document.getElementById("apiKeySave").addEventListener("click", function () {
+    var input = document.getElementById("geminiApiKey");
+    S.geminiApiKey = (input.value || "").trim();
+    persistGeminiApiKey();
+    renderApiKeySection();
+    syncSettingsToPython();
+    toast(S.geminiApiKey ? "Clé API Gemini enregistrée" : "Clé API supprimée");
+  });
+  document.getElementById("apiKeyClear").addEventListener("click", function () {
+    S.geminiApiKey = "";
+    document.getElementById("geminiApiKey").value = "";
+    persistGeminiApiKey();
+    renderApiKeySection();
+    syncSettingsToPython();
+    toast("Clé API supprimée");
   });
 
   document.getElementById("backToTop").addEventListener("click", function () {
@@ -1818,6 +1911,7 @@
     S.pending[id][want] = true;
     var payload = { nonce: Date.now() + "-" + Math.random().toString(36).slice(2), id: id, want: want };
     if (opts && opts.summaryPoints != null) payload.summary_points = opts.summaryPoints;
+    if (want === "summary" || want === "both") payload.gemini_api_key = S.geminiApiKey || "";
     setValue(payload);
   }
   function summaryText(entry) {
@@ -1826,7 +1920,7 @@
   }
   function isSummaryError(text) {
     if (!text) return false;
-    return /^Erreur Mistral/i.test(text) || /limite Mistral/i.test(text) || /rate limit/i.test(text);
+    return /^Erreur Gemini/i.test(text) || /limite Gemini/i.test(text) || /rate limit/i.test(text) || /clé API Gemini/i.test(text);
   }
   function validSummaryText(entry) {
     var text = summaryText(entry);
@@ -1902,8 +1996,13 @@
     var sb = document.createElement("button");
     sb.className = "btn gold";
     sb.innerHTML = loadingSummary ? '<span class="spinner"></span> Analyse en cours…' : (hasSummary ? "✨ Résumé généré" : "✨ Résumer");
-    sb.disabled = loadingSummary || hasSummary;
+    sb.disabled = loadingSummary || hasSummary || !hasGeminiApiKey();
+    sb.title = hasGeminiApiKey() ? "" : "Ajoutez votre clé API Gemini dans Personnaliser";
     sb.addEventListener("click", function () {
+      if (!hasGeminiApiKey()) {
+        toast("Ajoutez votre clé API Gemini dans Personnaliser");
+        return;
+      }
       request(a.id, "summary", { summaryPoints: parseInt(sel.value, 10) || 5 });
       renderReaderActions(a);
       renderReaderSummary(a);
@@ -1943,11 +2042,11 @@
     var pts = summaryPoints(summaryEntry);
     var headPts = pts === 1 ? "1 point" : pts + " points";
     if (summary) {
-      rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé en ' + headPts + ' · Mistral</div>' + mdLight(summary) + "</div>";
+      rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé en ' + headPts + ' · Gemini</div>' + mdLight(summary) + "</div>";
     } else if (isSummaryError(summaryRaw)) {
       rSummary.innerHTML = '<div class="summary-box summary-error"><div class="s-head">⚠️ Résumé indisponible</div><p>' + esc(summaryRaw) + "</p></div>";
     } else if (loading) {
-      rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé · Mistral</div><div class="loading-block"><span class="spinner"></span> Génération du résumé…</div></div>';
+      rSummary.innerHTML = '<div class="summary-box"><div class="s-head">✨ Résumé · Gemini</div><div class="loading-block"><span class="spinner"></span> Génération du résumé…</div></div>';
     } else rSummary.innerHTML = "";
   }
 
@@ -2101,6 +2200,7 @@
       } else {
         S.feedsSynced = true;
       }
+      syncSettingsToPython();
     } else if (args.articles) {
       var prev = S.articles.map(function (a) { return a.id; }).join("|");
       var next = args.articles.map(function (a) { return a.id; }).join("|");

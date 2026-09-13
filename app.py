@@ -13,15 +13,19 @@ import streamlit.components.v1 as components
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from mistralai import Mistral
-
 # ==============================
-# CONFIGURATION MISTRAL
+# CONFIGURATION GEMINI
 # ==============================
 
-client = Mistral(api_key="yLoE1iD8DZpbusRDpVQ44wmyc2uIqaTx")
-
-MAX_CHARS = 12000  # Limite envoyée à Mistral
+GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODEL}:generateContent"
+)
+MAX_CHARS = 12000  # Limite envoyée à Gemini
+NO_API_KEY_MESSAGE = (
+    "Ajoutez votre clé API Gemini dans l’onglet Personnaliser pour utiliser les résumés IA."
+)
 
 # Performance : chargement par lots (12 articles / flux), cache et parallélisme
 MAX_ARTICLES_PAR_FLUX = 12
@@ -67,17 +71,34 @@ def nettoyer_html(raw_html):
 # FONCTION : GENERATION RESUME
 # ==============================
 
-def _mistral_rate_limited(exc):
-    msg = str(exc).lower()
+def _gemini_rate_limited(status_code, body=""):
+    msg = str(body).lower()
     return (
-        "429" in str(exc)
+        status_code == 429
         or "rate limit" in msg
         or "ratelimited" in msg
-        or "1300" in msg
+        or "resource_exhausted" in msg
     )
 
 
-def generer_resume(texte, n_points=5, max_retries=4):
+def _gemini_error_message(status_code, body=""):
+    if status_code == 429 or _gemini_rate_limited(status_code, body):
+        return (
+            "Le service de résumé IA est momentanément saturé (limite Gemini atteinte). "
+            "Patientez une minute puis relancez « Résumer »."
+        )
+    if status_code in (400, 401, 403):
+        return (
+            "Clé API Gemini invalide ou refusée. Vérifiez votre clé dans l’onglet Personnaliser."
+        )
+    return f"Erreur Gemini ({status_code}) : {body}"
+
+
+def generer_resume(texte, n_points=5, api_key=None, max_retries=4):
+    api_key = (api_key or "").strip()
+    if not api_key:
+        return NO_API_KEY_MESSAGE
+
     n_points = max(1, min(5, int(n_points)))
     texte_utilise = texte[:MAX_CHARS]
     point_label = "point majeur" if n_points == 1 else "points majeurs"
@@ -97,27 +118,53 @@ Article :
 {texte_utilise}
 """
 
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.4},
+    }
     last_err = None
     for attempt in range(max_retries):
         try:
-            response = client.chat.complete(
-                model="mistral-small-latest",
-                messages=[{"role": "user", "content": prompt}],
+            response = requests.post(
+                GEMINI_API_URL,
+                params={"key": api_key},
+                json=payload,
+                headers=REQUEST_HEADERS,
+                timeout=90,
             )
-            return response.choices[0].message.content
-        except Exception as e:
+            if response.ok:
+                data = response.json()
+                candidates = data.get("candidates") or []
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts") or []
+                    text_parts = [
+                        part.get("text", "")
+                        for part in parts
+                        if isinstance(part, dict) and part.get("text")
+                    ]
+                    if text_parts:
+                        return "\n".join(text_parts).strip()
+                last_err = data.get("error", {}).get("message") or "Réponse Gemini vide."
+                break
+
+            body = response.text
+            if _gemini_rate_limited(response.status_code, body) and attempt < max_retries - 1:
+                time.sleep(min(2 ** attempt * 2, 24))
+                continue
+            return _gemini_error_message(response.status_code, body)
+        except requests.RequestException as e:
             last_err = e
-            if _mistral_rate_limited(e) and attempt < max_retries - 1:
+            if attempt < max_retries - 1:
                 time.sleep(min(2 ** attempt * 2, 24))
                 continue
             break
 
-    if last_err and _mistral_rate_limited(last_err):
+    if last_err and _gemini_rate_limited(429, str(last_err)):
         return (
-            "Le service de résumé IA est momentanément saturé (limite Mistral atteinte). "
+            "Le service de résumé IA est momentanément saturé (limite Gemini atteinte). "
             "Patientez une minute puis relancez « Résumer »."
         )
-    return f"Erreur Mistral : {last_err}"
+    return f"Erreur Gemini : {last_err}"
 
 
 # ==============================
@@ -785,8 +832,12 @@ def _texte_pour_resume(url, fallback_html):
     return texte
 
 
-def resume_pour_url(url, fallback_html, n_points=5):
-    return generer_resume(_texte_pour_resume(url, fallback_html), n_points)
+def resume_pour_url(url, fallback_html, n_points=5, api_key=None):
+    return generer_resume(
+        _texte_pour_resume(url, fallback_html),
+        n_points,
+        api_key=api_key,
+    )
 
 
 # ==============================
@@ -853,6 +904,8 @@ if "feed_offsets" not in st.session_state:
     st.session_state.feed_offsets = {}
 if "feeds_has_more" not in st.session_state:
     st.session_state.feeds_has_more = False
+if "gemini_api_key" not in st.session_state:
+    st.session_state.gemini_api_key = ""
 
 feeds_key = _feeds_cache_key(
     st.session_state.custom_feeds,
@@ -888,7 +941,11 @@ valeur = flipboard(articles, enrichments)
 if isinstance(valeur, dict) and valeur.get("nonce") != st.session_state.last_nonce:
     st.session_state.last_nonce = valeur.get("nonce")
 
-    if valeur.get("action") == "feeds":
+    if valeur.get("action") == "settings":
+        new_key = (valeur.get("gemini_api_key") or "").strip()
+        if new_key != st.session_state.gemini_api_key:
+            st.session_state.gemini_api_key = new_key
+    elif valeur.get("action") == "feeds":
         new_feeds = valeur.get("feeds") or []
         new_disabled = valeur.get("disabled_feeds")
         if new_disabled is None:
@@ -946,15 +1003,24 @@ if isinstance(valeur, dict) and valeur.get("nonce") != st.session_state.last_non
                 rate_limited = (
                     isinstance(existing_text, str)
                     and (
-                        "limite Mistral" in existing_text
+                        "limite Gemini" in existing_text
                         or "Rate limit" in existing_text
                         or "ratelimited" in existing_text.lower()
                     )
                 )
+                api_key = (
+                    (valeur.get("gemini_api_key") or "").strip()
+                    or st.session_state.gemini_api_key
+                )
+                if api_key:
+                    st.session_state.gemini_api_key = api_key
                 if aid not in st.session_state.enrich_summary or rate_limited:
                     st.session_state.enrich_summary[aid] = {
                         "text": resume_pour_url(
-                            art["link"], art["summary_html"], n_points
+                            art["link"],
+                            art["summary_html"],
+                            n_points,
+                            api_key=api_key,
                         ),
                         "points": n_points,
                     }
