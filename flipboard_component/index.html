@@ -681,17 +681,116 @@
 (function () {
   "use strict";
 
-  // ---------- Streamlit protocol ----------
+  // ---------- Backend bridge (Streamlit iframe or FastAPI standalone) ----------
+  var STANDALONE = (function () {
+    try { return window.parent === window; }
+    catch (e) { return true; }
+  })();
+
   function post(type, extra) {
     window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, extra || {}), "*");
   }
-  function setValue(value) { post("streamlit:setComponentValue", { value: value, dataType: "json" }); }
-  function setHeight(h) { post("streamlit:setFrameHeight", { height: h }); }
+  function apiFetch(path, options) {
+    return fetch("/api" + path, Object.assign({
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+    }, options || {})).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          throw new Error(body || ("HTTP " + res.status));
+        });
+      }
+      return res.json();
+    });
+  }
+  function applyBootstrap(data) {
+    onRender({ articles: data.articles, enrichments: data.enrichments });
+  }
+  function handleApiAction(value) {
+    if (!value) return Promise.resolve();
+    if (value.action === "settings") {
+      return apiFetch("/settings", {
+        method: "PUT",
+        body: JSON.stringify({ gemini_api_key: value.gemini_api_key || "" }),
+      });
+    }
+    if (value.action === "feeds") {
+      return apiFetch("/feeds", {
+        method: "PUT",
+        body: JSON.stringify({
+          feeds: value.feeds || [],
+          disabled_feeds: value.disabled_feeds || [],
+          active_packages: value.active_packages || [],
+        }),
+      }).then(applyBootstrap);
+    }
+    if (value.action === "load_more") {
+      return apiFetch("/articles/load-more", { method: "POST" }).then(applyBootstrap).finally(function () {
+        S.loadingMore = false;
+        updateLastPagePill();
+      });
+    }
+    if (value.id && value.want === "text") {
+      return apiFetch("/articles/" + encodeURIComponent(value.id) + "/text", { method: "POST" })
+        .then(function (data) {
+          if (data.enrichments) onRender({ enrichments: data.enrichments });
+          else applyEnrichments();
+        });
+    }
+    if (value.id && value.want === "summary") {
+      return apiFetch("/articles/" + encodeURIComponent(value.id) + "/summary", {
+        method: "POST",
+        body: JSON.stringify({
+          summary_points: value.summary_points || 5,
+          gemini_api_key: value.gemini_api_key || "",
+        }),
+      }).then(function (data) {
+        if (data.enrichments) onRender({ enrichments: data.enrichments });
+        else applyEnrichments();
+      });
+    }
+    if (value.id && value.want === "both") {
+      return apiFetch("/articles/" + encodeURIComponent(value.id) + "/text", { method: "POST" })
+        .then(function () {
+          return apiFetch("/articles/" + encodeURIComponent(value.id) + "/summary", {
+            method: "POST",
+            body: JSON.stringify({
+              summary_points: value.summary_points || 5,
+              gemini_api_key: value.gemini_api_key || "",
+            }),
+          });
+        })
+        .then(function (data) {
+          if (data.enrichments) onRender({ enrichments: data.enrichments });
+          else applyEnrichments();
+        });
+    }
+    return Promise.resolve();
+  }
+  function setValue(value) {
+    if (STANDALONE) {
+      handleApiAction(value).catch(function (err) {
+        toast("Erreur serveur : " + (err.message || err));
+        if (S.loadingMore) {
+          S.loadingMore = false;
+          updateLastPagePill();
+        }
+        applyEnrichments();
+      });
+      return;
+    }
+    post("streamlit:setComponentValue", { value: value, dataType: "json" });
+  }
+  function setHeight(h) { if (!STANDALONE) post("streamlit:setFrameHeight", { height: h }); }
   function fitHeight() {
-    var h = 760;
-    try { h = window.parent.innerHeight || window.innerHeight; }
-    catch (e) { h = window.innerHeight || 760; }
-    setHeight(Math.max(560, h));
+    var h = Math.max(560, window.innerHeight || 760);
+    if (!STANDALONE) {
+      try { h = Math.max(560, window.parent.innerHeight || window.innerHeight || 760); }
+      catch (e) { h = Math.max(560, window.innerHeight || 760); }
+      setHeight(h);
+    }
+    document.documentElement.style.height = h + "px";
+    document.body.style.height = h + "px";
   }
 
   // ---------- State ----------
@@ -2228,11 +2327,18 @@
     }
   }
 
-  window.addEventListener("message", function (e) { if (e.data && e.data.type === "streamlit:render") onRender(e.data.args); });
   window.addEventListener("resize", function () { fitHeight(); if (S.view === "discover") goToPage(S.current); else layout(); });
 
-  post("streamlit:componentReady", { apiVersion: 1 });
-  fitHeight();
+  if (STANDALONE) {
+    apiFetch("/bootstrap").then(applyBootstrap).catch(function (err) {
+      toast("Impossible de charger Verto : " + (err.message || err));
+    });
+    fitHeight();
+  } else {
+    window.addEventListener("message", function (e) { if (e.data && e.data.type === "streamlit:render") onRender(e.data.args); });
+    post("streamlit:componentReady", { apiVersion: 1 });
+    fitHeight();
+  }
 })();
 </script>
 </body>
