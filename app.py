@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 # CONFIGURATION GEMINI
 # ==============================
 
-GEMINI_MODEL = "gemini-3.6-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 GEMINI_API_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"{GEMINI_MODEL}:generateContent"
@@ -78,6 +78,20 @@ def _gemini_rate_limited(status_code, body=""):
         or "rate limit" in msg
         or "ratelimited" in msg
         or "resource_exhausted" in msg
+    )
+
+
+def _is_summary_error(text):
+    if not isinstance(text, str) or not text:
+        return False
+    lower = text.lower()
+    return (
+        text.startswith("Erreur Gemini")
+        or "limite gemini" in lower
+        or "clé api gemini" in lower
+        or "ajoutez votre clé api gemini" in lower
+        or "rate limit" in lower
+        or "ratelimited" in lower
     )
 
 
@@ -1000,21 +1014,17 @@ if isinstance(valeur, dict) and valeur.get("nonce") != st.session_state.last_non
                     if isinstance(existing, dict)
                     else existing
                 )
-                rate_limited = (
-                    isinstance(existing_text, str)
-                    and (
-                        "limite Gemini" in existing_text
-                        or "Rate limit" in existing_text
-                        or "ratelimited" in existing_text.lower()
-                    )
-                )
                 api_key = (
                     (valeur.get("gemini_api_key") or "").strip()
                     or st.session_state.gemini_api_key
                 )
                 if api_key:
                     st.session_state.gemini_api_key = api_key
-                if aid not in st.session_state.enrich_summary or rate_limited:
+                should_regenerate = (
+                    aid not in st.session_state.enrich_summary
+                    or _is_summary_error(existing_text)
+                )
+                if should_regenerate:
                     st.session_state.enrich_summary[aid] = {
                         "text": resume_pour_url(
                             art["link"],
