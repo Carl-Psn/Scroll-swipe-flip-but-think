@@ -43,6 +43,18 @@ REQUEST_HEADERS = {
     "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
 }
 
+# Flux protégés par Cloudflare : repli via Google News (site:domaine)
+FEED_FALLBACK_URLS = {
+    "https://www.institutmontaigne.org/rss.xml": (
+        "https://news.google.com/rss/search?q=site:institutmontaigne.org"
+        "&hl=fr&gl=FR&ceid=FR:fr"
+    ),
+    "https://orientxxi.info/?page=backend&lang=fr": (
+        "https://news.google.com/rss/search?q=site:orientxxi.info"
+        "&hl=fr&gl=FR&ceid=FR:fr"
+    ),
+}
+
 
 # ==============================
 # FONCTION : EXTRACTION ARTICLE COMPLET
@@ -607,13 +619,70 @@ def _round_robin_merge(batches):
     return merged
 
 
+def _telecharger_flux_contenu(url):
+    """Télécharge le contenu brut d'un flux RSS, ou None si bloqué / inaccessible."""
+    try:
+        response = requests.get(url, headers=REQUEST_HEADERS, timeout=15)
+        response.raise_for_status()
+        if _page_est_bloquee(response.text):
+            return None
+        return response.content
+    except Exception:
+        return None
+
+
+@st.cache_data(show_spinner=False, ttl=86400)
+def _decoder_lien_google_news(url):
+    """Décode un lien Google News vers l'URL d'article d'origine."""
+    if not url or "news.google.com" not in url:
+        return url
+    try:
+        from googlenewsdecoder import gnewsdecoder
+
+        result = gnewsdecoder(url, interval=0)
+        if result.get("status") and result.get("decoded_url"):
+            return result["decoded_url"]
+    except Exception:
+        pass
+    return url
+
+
+def _nettoyer_titre_google_news(titre, nom_source):
+    """Retire le suffixe « - Source » ajouté par Google News."""
+    t = re.sub(r"\s+", " ", (titre or "").strip())
+    if not t:
+        return titre or ""
+    suffixes = (
+        f" - {nom_source}",
+        f" - {nom_source.lower()}",
+        " - institutmontaigne.org",
+        " - orientxxi.info",
+    )
+    low = t.lower()
+    for suffix in suffixes:
+        if low.endswith(suffix.lower()):
+            return t[: -len(suffix)].strip() or t
+    return t
+
+
 @st.cache_data(show_spinner=False, ttl=FEED_CACHE_TTL)
 def _articles_depuis_flux(url, name, emoji, offset, limit):
     """Lot d'articles d'un flux (cache par URL + offset). Images enrichies via scraping."""
+    content = _telecharger_flux_contenu(url)
+    google_news = False
+    if not content:
+        fallback = FEED_FALLBACK_URLS.get(url)
+        if fallback:
+            content = _telecharger_flux_contenu(fallback)
+            google_news = bool(content)
+    if not content:
+        return [], False
+
     try:
-        flux = feedparser.parse(url, request_headers=REQUEST_HEADERS)
+        flux = feedparser.parse(content)
     except Exception:
         return [], False
+
     entries = list(flux.entries[offset:offset + limit])
     has_more = len(flux.entries) > offset + limit
     if not entries:
@@ -624,7 +693,16 @@ def _articles_depuis_flux(url, name, emoji, offset, limit):
 
     def _build(entry_i):
         entry, idx = entry_i
-        return _article_depuis_entry(entry, name, emoji, idx)
+        art = _article_depuis_entry(entry, name, emoji, idx)
+        if not art:
+            return None
+        if google_news:
+            lien = _decoder_lien_google_news(art.get("link", ""))
+            if lien:
+                art["link"] = lien
+                art["id"] = hashlib.md5(lien.encode("utf-8")).hexdigest()[:12]
+            art["title"] = _nettoyer_titre_google_news(art.get("title"), name)
+        return art
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         for art in pool.map(_build, [(e, offset + i) for i, e in enumerate(entries)]):
